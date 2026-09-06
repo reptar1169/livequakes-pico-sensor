@@ -74,9 +74,24 @@ station's private API key. Never commit it.
 ## Tuning
 
 The tunables at the top of `main.py` (trigger sensitivity, warmup time,
-amplitude scaling, etc.) are commented inline. If your mount is picking up
-too much local noise (footsteps, doors), a more rigid mount (bolted/clamped
-rather than sitting loose on a desk) helps more than retuning thresholds.
+amplitude scaling, etc.) are commented inline. Set `DEBUG_STATUS = True`
+(on by default) and watch the Shell/REPL output: it prints the live
+STA/LTA ratio every few seconds so you can see where your ambient noise
+floor actually sits before deciding how far to lower `TRIGGER_RATIO`.
+
+To catch smaller tremors, lower `TRIGGER_RATIO` (default `2.5`, down from
+an initial `4.0`) -- the lower it goes, the more sensitive, but also the
+more prone to false triggers from footsteps or doors on a loose mount. If
+your mount is picking up too much local noise, a more rigid mount
+(bolted/clamped rather than sitting loose on a desk) helps more than
+retuning thresholds.
+
+**Testing gotcha:** `WARMUP_S` (default 90s) only blocks *triggering* --
+the ambient-noise baseline keeps updating the whole time, warmup included.
+Shaking the board to "test" it during warmup gets absorbed as normal
+background noise and raises your effective threshold for a while after
+warmup ends too. Power-cycle, leave it completely still for the full
+warmup, *then* do a test shake.
 
 ## License
 

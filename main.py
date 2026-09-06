@@ -33,16 +33,33 @@ LTA_TAU_S = 30.0  # long-term average time constant (seconds)
 BASELINE_TAU_S = 120.0  # very slow EMA tracking the resting ~1g offset
 WARMUP_S = 90  # ignore triggers for this long after boot, while STA/LTA settle
 
-TRIGGER_RATIO = 4.0  # STA/LTA ratio that starts an event
+TRIGGER_RATIO = 2.5  # STA/LTA ratio that starts an event -- lower catches
+# smaller tremors, but raises the false-trigger rate from footsteps/doors on a
+# loose mount. 4.0 was tuned conservative; drop further (e.g. 2.0) once you've
+# watched the idle ratio (see DEBUG_STATUS below) and know your noise floor.
 DETRIGGER_RATIO = 1.3  # STA/LTA ratio that ends an event
 TRIGGER_CONFIRM_SAMPLES = 3  # consecutive over-threshold samples required to fire
-MIN_EVENT_MS = 300  # basic floor against instant one-sample blips; note that STA
+MIN_EVENT_MS = 150  # basic floor against instant one-sample blips; note that STA
 # smoothing itself stretches a brief tap into a longer-looking event (a single
 # knock can still end up reported as ~1s long), so this alone won't cleanly
 # separate "someone bumped the table" from a real quake -- amplitude is the
 # more reliable signal for that: a tap is a low peak-g event, a real quake is not.
 AMPLITUDE_SCALE = 3000  # peak g-deviation * this = reported amplitude (0-1000, clipped)
+DEBUG_STATUS = True  # print the live STA/LTA ratio every few seconds -- turn
+# this on while tuning so you can see how close ambient noise sits to
+# TRIGGER_RATIO, then turn it off (or just ignore the extra print) once happy.
+DEBUG_STATUS_INTERVAL_S = 3
 # -------------------------------------------------------------------------
+
+# IMPORTANT while testing: WARMUP_S below only blocks *triggering* -- the
+# LTA (ambient noise floor) and baseline keep updating the entire time,
+# warmup included. If you shake the board hard during those first 90s to see
+# if it "works," that shake gets absorbed into LTA as if it were normal
+# background noise, which raises your effective threshold for the next
+# ~30-90s (LTA's own time constant) even after warmup ends -- so a second
+# test shake right after can look like it "doesn't trigger" when really the
+# first shake poisoned the baseline. Power-cycle, leave it completely still
+# for the full warmup, *then* do your test shake.
 
 
 def connect_wifi():
@@ -117,6 +134,7 @@ def main():
 
     boot_time = time.ticks_ms()
     last_t = boot_time
+    last_debug_print = boot_time
 
     while True:
         x, y, z = sensor.acceleration()
@@ -139,6 +157,13 @@ def main():
 
         ratio = (sta / lta) if lta > 0.0005 else 0.0
         warmed_up = time.ticks_diff(now, boot_time) > WARMUP_S * 1000
+
+        if DEBUG_STATUS and not triggered:
+            if time.ticks_diff(now, last_debug_print) >= DEBUG_STATUS_INTERVAL_S * 1000:
+                last_debug_print = now
+                print("status: ratio=%.2f sta=%.5f lta=%.5f dev=%.5f%s" % (
+                    ratio, sta, lta, dev, "" if warmed_up else " (warming up)"
+                ))
 
         if not triggered:
             if warmed_up and ratio > TRIGGER_RATIO:
