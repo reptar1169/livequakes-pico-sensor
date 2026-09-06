@@ -10,6 +10,9 @@ Total hardware cost is well under $30 -- built as a cheap, hackable
 alternative to a Raspberry Shake for anyone who wants to contribute real
 sensor data.
 
+![The finished sensor, mounted and reporting live](wall-mount.jpg)
+*The finished sensor, mounted and reporting live. The green LED means it's powered and running.*
+
 ## How it works
 
 The firmware polls the accelerometer as fast as I2C allows and runs a
@@ -45,6 +48,8 @@ quirk on constrained MicroPython WiFi stacks).
 | GND      | GND         |
 | SCL      | GP5         |
 | SDA      | GP4         |
+
+![Wiring detail: VIN to 3V3, SCL to GP5, SDA to GP4, GND to GND](wiring-labeled.jpg)
 
 ## Setup
 

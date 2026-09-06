@@ -6,3 +6,7 @@ lib/
 __pycache__/
 *.pyc
 .DS_Store
+
+# Raw phone exports -- huge, and superseded by the JPGs actually used in the README
+*.HEIC
+*.mov
