@@ -1,0 +1,8 @@
+# Real credentials -- never commit this. Copy config.py.example instead.
+config.py
+
+# MicroPython / Thonny cruft
+lib/
+__pycache__/
+*.pyc
+.DS_Store

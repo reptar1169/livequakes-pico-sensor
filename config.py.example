@@ -1,0 +1,13 @@
+# config.py -- copy this file to config.py, fill in your real values, then
+# upload BOTH files to the Pico. config.py is gitignored on purpose: it holds
+# your WiFi password and station API key, and neither belongs in a public repo.
+
+WIFI_SSID = "your-wifi-name"
+WIFI_PASSWORD = "your-wifi-password"
+
+# From the "Register station" flow on livequakes.com (Community Stations
+# section) -- shown once, save it then. Register a new station for this
+# device rather than reusing a test key.
+STATION_API_KEY = "PASTE_YOUR_STATION_API_KEY_HERE"
+
+INGEST_URL = "https://us-central1-livequakes.cloudfunctions.net/ingestEvent"
