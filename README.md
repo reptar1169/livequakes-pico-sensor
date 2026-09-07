@@ -71,6 +71,12 @@ quirk on constrained MicroPython WiFi stacks).
 `config.py` is gitignored on purpose -- it holds your WiFi password and your
 station's private API key. Never commit it.
 
+While you're getting the wiring and tuning right, you'll likely rack up a
+pile of test triggers. Sign in on livequakes.com, click your station (in
+**My stations**), and you can delete individual events or use **Clear all
+events** to wipe the test data in one go without losing the station or its
+API key.
+
 ## Tuning
 
 The tunables at the top of `main.py` (trigger sensitivity, warmup time,
@@ -101,6 +107,30 @@ included. Shaking the board to "test" it during warmup gets absorbed as
 normal background noise and raises your effective threshold for a while
 after warmup ends too. Power-cycle, leave it completely still for the
 full warmup, *then* do a test shake.
+
+### Telling a tremor from a door slam / footstep / tap
+
+Amplitude alone can't do this -- a sharp knock can produce just as high a
+peak-g reading as a gentle real shake (confirmed the hard way: tapping the
+table this project sits on triggered it at first). The actual physical
+difference is duration and shape: a knock is one brief impulse the board's
+structure absorbs and stops ringing from almost immediately, while real
+ground shaking keeps the raw signal meaningfully elevated for a sustained
+stretch. `main.py` checks this directly on the raw (pre-smoothing) signal:
+an event only gets reported if the raw deviation stays above
+`RAW_ELEVATED_MULT` times the noise floor for at least `SUSTAINED_MS`
+somewhere during the event; otherwise it prints `IMPULSIVE, not reporting`
+and drops it. Tune `SUSTAINED_MS` down if real small tremors start getting
+rejected, or up if taps/door slams still slip through.
+
+This is a cheap heuristic, not true seismic phase discrimination -- real
+seismic networks lean on frequency-domain analysis and, more importantly,
+*network coincidence* (an event only counts if multiple nearby stations
+see it within a plausible travel-time window), which is a server-side
+problem, not a firmware one. A single DIY sensor doing its best on-device
+is inherently going to have false positives sometimes; a solid mount away
+from doors and high-traffic areas will do more for accuracy than any
+threshold tweak.
 
 ## License
 
