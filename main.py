@@ -33,11 +33,15 @@ LTA_TAU_S = 30.0  # long-term average time constant (seconds)
 BASELINE_TAU_S = 120.0  # very slow EMA tracking the resting ~1g offset
 WARMUP_S = 90  # ignore triggers for this long after boot, while STA/LTA settle
 
-TRIGGER_RATIO = 2.5  # STA/LTA ratio that starts an event -- lower catches
-# smaller tremors, but raises the false-trigger rate from footsteps/doors on a
-# loose mount. 4.0 was tuned conservative; drop further (e.g. 2.0) once you've
-# watched the idle ratio (see DEBUG_STATUS below) and know your noise floor.
-DETRIGGER_RATIO = 1.3  # STA/LTA ratio that ends an event
+TRIGGER_RATIO = 4.0  # STA/LTA ratio that starts an event. Measured idle
+# ratio on this board (after the baseline-calibration and lta-guard fixes)
+# settles around 1.0-1.5 at rest; 3.0 caught real shakes fine but was also
+# tripped by just tapping the table, so 4.0 is the confirmed-good working
+# value -- comfortable headroom above idle noise, still sensitive to a
+# genuine small tremor. Watch DEBUG_STATUS if you ever want to retune.
+DETRIGGER_RATIO = 1.3  # STA/LTA ratio that ends an event -- comfortably
+# below TRIGGER_RATIO and above the ~1.0-1.5 idle range, so a real event
+# fully de-triggers once it settles back to normal instead of flapping.
 TRIGGER_CONFIRM_SAMPLES = 3  # consecutive over-threshold samples required to fire
 MIN_EVENT_MS = 150  # basic floor against instant one-sample blips; note that STA
 # smoothing itself stretches a brief tap into a longer-looking event (a single
@@ -122,11 +126,29 @@ def main():
     i2c = I2C(0, sda=Pin(I2C_SDA_PIN), scl=Pin(I2C_SCL_PIN), freq=400000)
     print("I2C devices found:", [hex(a) for a in i2c.scan()])
     sensor = LSM6DSOX(i2c)
-    print("LSM6DSOX ready. Warming up for %ds..." % WARMUP_S)
+
+    # Calibrate the resting baseline from real readings instead of assuming
+    # exactly 1.000g. Board tilt and per-unit sensor offset error mean the
+    # true resting |acceleration| is almost never exactly 1g -- starting
+    # from a wrong guess creates a large fake "dev" that BASELINE_TAU_S (120s)
+    # takes a long time to settle out of, which swamps the real ambient noise
+    # floor for minutes and makes low-ratio tuning meaningless during that
+    # window. Don't touch the board during this 1s calibration.
+    print("Calibrating resting baseline (keep the board still)...")
+    calib_sum = 0.0
+    calib_n = 0
+    calib_start = time.ticks_ms()
+    while time.ticks_diff(time.ticks_ms(), calib_start) < 1000:
+        cx, cy, cz = sensor.acceleration()
+        calib_sum += (cx * cx + cy * cy + cz * cz) ** 0.5
+        calib_n += 1
+    baseline = calib_sum / calib_n
+    print("Baseline calibrated: %.5fg (%d samples). Warming up for %ds..." % (
+        baseline, calib_n, WARMUP_S
+    ))
 
     sta = 0.0
     lta = 0.0
-    baseline = 1.0  # resting |acceleration| is ~1g in any orientation
     triggered = False
     trigger_start = 0
     peak_dev = 0.0
@@ -155,7 +177,13 @@ def main():
             lta += (dev - lta) * ema_alpha(dt, LTA_TAU_S)
             baseline += (mag - baseline) * ema_alpha(dt, BASELINE_TAU_S)
 
-        ratio = (sta / lta) if lta > 0.0005 else 0.0
+        ratio = (sta / lta) if lta > 0.00002 else 0.0
+        # NOTE: this guard used to sit at 0.0005 -- fine back when a baseline
+        # seeding bug made lta run 10-20x too high, but with baseline now
+        # calibrated correctly, real quiet-room lta legitimately settles well
+        # below the old 0.0005 floor, which was forcing ratio to a permanent
+        # 0.00 and made triggering impossible. This value only needs to be
+        # small enough to dodge a literal divide-by-near-zero at boot.
         warmed_up = time.ticks_diff(now, boot_time) > WARMUP_S * 1000
 
         if DEBUG_STATUS and not triggered:

@@ -79,19 +79,28 @@ amplitude scaling, etc.) are commented inline. Set `DEBUG_STATUS = True`
 STA/LTA ratio every few seconds so you can see where your ambient noise
 floor actually sits before deciding how far to lower `TRIGGER_RATIO`.
 
-To catch smaller tremors, lower `TRIGGER_RATIO` (default `2.5`, down from
-an initial `4.0`) -- the lower it goes, the more sensitive, but also the
-more prone to false triggers from footsteps or doors on a loose mount. If
-your mount is picking up too much local noise, a more rigid mount
-(bolted/clamped rather than sitting loose on a desk) helps more than
-retuning thresholds.
+At power-up, `main.py` takes a 1-second calibration burst to measure your
+board's actual resting acceleration (printed as `Baseline calibrated:
+X.XXXXXg`) rather than assuming exactly 1.000g -- keep the board still
+during that one second. On the reference board this project was built on,
+idle `ratio` settled to roughly 1.0-1.5 once warmed up. `3.0` reliably
+caught real small shakes but also fired from just tapping the table it
+was sitting on, so `TRIGGER_RATIO` defaults to `4.0` -- comfortable
+headroom above idle noise while still catching a genuine small tremor.
+Your own board's idle ratio will differ, so watch `DEBUG_STATUS` at rest
+for a minute before trusting any threshold -- `1.0` is the ratio's
+mathematical equilibrium point (STA and LTA drift above/below it from
+plain noise with zero real shaking), so the closer you get to it, the
+more false events you'll get, not just real tremors. If your mount is
+picking up too much local noise, a more rigid mount (bolted/clamped
+rather than sitting loose on a desk) helps more than retuning thresholds.
 
 **Testing gotcha:** `WARMUP_S` (default 90s) only blocks *triggering* --
-the ambient-noise baseline keeps updating the whole time, warmup included.
-Shaking the board to "test" it during warmup gets absorbed as normal
-background noise and raises your effective threshold for a while after
-warmup ends too. Power-cycle, leave it completely still for the full
-warmup, *then* do a test shake.
+`lta` (the ambient-noise average) keeps updating the whole time, warmup
+included. Shaking the board to "test" it during warmup gets absorbed as
+normal background noise and raises your effective threshold for a while
+after warmup ends too. Power-cycle, leave it completely still for the
+full warmup, *then* do a test shake.
 
 ## License
 
